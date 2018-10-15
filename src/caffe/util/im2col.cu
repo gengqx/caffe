@@ -5,6 +5,118 @@
 
 namespace caffe {
 
+////////////////////////////////add by baidu apollo ///////////////////////////////////////////////
+template <typename Dtype>
+__global__ void im2col_v2_gpu_kernel(const int n, const Dtype* data_im, const int channels,
+                                     const int height, const int width, const int kernel_h, const int kernel_w,
+                                     const int pad_h, const int pad_w,
+                                     const int stride_h, const int stride_w,
+                                     const int height_col, const int width_col,
+                                     Dtype* data_col) {
+  CUDA_KERNEL_LOOP(index, n) {
+    int out_w_offset = (index/channels) % width_col;
+    int out_h_offset = ((index/channels)/width_col)%height_col;
+    int c_im = index%channels;
+    int temp_h_pad = out_h_offset * stride_h - pad_h;
+    int temp_w_pad = out_w_offset * stride_w - pad_w;
+    Dtype* data_col_ptr = data_col +  index  * kernel_h  *kernel_w;
+    const Dtype* data_im_ptr = data_im + c_im*height *width;
+    for(int h=0; h < kernel_h; ++h){
+      for(int w = 0; w < kernel_w; ++w){
+        int h_pad = temp_h_pad + h ;
+        int w_pad = temp_w_pad + w;
+        *data_col_ptr = (h_pad >= 0 && h_pad < height && w_pad >= 0 && w_pad < width) ?
+                        data_im_ptr[ h_pad *width+w_pad] : 0;
+        data_col_ptr++;
+      }
+    }
+  }
+}
+template <typename Dtype>
+void im2col_v2_gpu(const Dtype* data_im, const int channels,
+                   const int height, const int width, const int kernel_h, const int kernel_w,
+                   const int pad_h, const int pad_w,
+                   const int stride_h, const int stride_w,
+                   Dtype* data_col) {
+  // We are going to launch channels * height_col * width_col kernels, each
+  // kernel responsible for copying a single-channel grid.
+  int height_col = (height + 2 * pad_h - kernel_h) / stride_h + 1;
+  int width_col = (width + 2 * pad_w - kernel_w) / stride_w + 1;
+  int num_kernels = channels * height_col * width_col;
+  // NOLINT_NEXT_LINE(whitespace/operators)
+  im2col_v2_gpu_kernel<Dtype><<<CAFFE_GET_BLOCKS(num_kernels),
+          CAFFE_CUDA_NUM_THREADS>>>(
+                  num_kernels, data_im,channels, height, width, kernel_h, kernel_w, pad_h,
+                          pad_w, stride_h, stride_w, height_col,
+                          width_col, data_col);
+  //CUDA_POST_KERNEL_CHECK;
+}
+template void im2col_v2_gpu<float>(const float* data_im, const int channels,
+                                   const int height, const int width, const int kernel_h, const int kernel_w,
+                                   const int pad_h, const int pad_w, const int stride_h, const int stride_w,
+                                   float* data_col);
+template void im2col_v2_gpu<double>(const double* data_im, const int channels,
+                                    const int height, const int width, const int kernel_h, const int kernel_w,
+                                    const int pad_h, const int pad_w, const int stride_h, const int stride_w,
+                                    double* data_col);
+template <typename Dtype>
+__global__ void col2im_v2_gpu_kernel(const int n, const Dtype* data_col,
+                                     const int height, const int width, const int channels,
+                                     const int patch_h, const int patch_w,
+                                     const int pad_h, const int pad_w,
+                                     const int stride_h, const int stride_w,
+                                     const int height_col, const int width_col,
+                                     Dtype* data_im) {
+  CUDA_KERNEL_LOOP(index, n) {
+    Dtype val = 0;
+    int w = index % width + pad_w;
+    int h = (index / width) % height + pad_h;
+    int c = index / (width * height);
+    // compute the start and end of the output
+    int w_col_start = (w < patch_w) ? 0 : (w - patch_w) / stride_w + 1;
+    int w_col_end = min(w / stride_w + 1, width_col);
+    int h_col_start = (h < patch_h) ? 0 : (h - patch_h) / stride_h + 1;
+    int h_col_end = min(h / stride_h + 1, height_col);
+//    /*
+    for (int h_col = h_col_start; h_col < h_col_end; ++h_col) {
+      for (int w_col = w_col_start; w_col < w_col_end; ++w_col) {
+        const Dtype* data_col_ptr = data_col+( (h_col*width_col + w_col)*channels + c)*patch_h*patch_w;
+        int h_in_patch = h - h_col*stride_h;
+        int w_in_patch = w - w_col*stride_w;
+        val+= data_col_ptr[ h_in_patch *patch_w + w_in_patch];
+      }
+    }
+    data_im[index] = val;
+  }
+}
+template <typename Dtype>
+void col2im_v2_gpu(const Dtype* data_col, const int channels,
+                   const int height, const int width, const int patch_h, const int patch_w,
+                   const int pad_h, const int pad_w, const int stride_h,
+                   const int stride_w, Dtype* data_im) {
+  int height_col = (height + 2 * pad_h - patch_h) / stride_h + 1;
+  int width_col = (width + 2 * pad_w - patch_w) / stride_w + 1;
+  int num_kernels = channels * height * width;
+  // To avoid involving atomic operations, we will launch one kernel per
+  // bottom dimension, and then in the kernel add up the top dimensions.
+  // NOLINT_NEXT_LINE(whitespace/operators)
+  col2im_v2_gpu_kernel<Dtype><<<CAFFE_GET_BLOCKS(num_kernels),
+          CAFFE_CUDA_NUM_THREADS>>>(
+                  num_kernels, data_col, height, width, channels, patch_h, patch_w,
+                          pad_h, pad_w, stride_h, stride_w,
+                          height_col, width_col, data_im);
+  CUDA_POST_KERNEL_CHECK;
+}
+template void col2im_v2_gpu<float>(const float* data_col, const int channels,
+                                   const int height, const int width, const int patch_h, const int patch_w,
+                                   const int pad_h, const int pad_w, const int stride_h,
+                                   const int stride_w, float* data_im);
+template void col2im_v2_gpu<double>(const double* data_col, const int channels,
+                                    const int height, const int width, const int patch_h, const int patch_w,
+                                    const int pad_h, const int pad_w, const int stride_h,
+                                    const int stride_w, double* data_im);
+/////////////////////////////////////////////////////////////////////////////////
+
 template <typename Dtype>
 __global__ void im2col_gpu_kernel(const int n, const Dtype* data_im,
     const int height, const int width, const int kernel_h, const int kernel_w,
