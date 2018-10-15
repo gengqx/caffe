@@ -421,6 +421,18 @@ message LayerParameter {
   optional ThresholdParameter threshold_param = 128;
   optional TileParameter tile_param = 138;
   optional WindowDataParameter window_data_param = 129;
+
+  // SSD
+  optional PermuteParameter permute_param = 202;
+  // add for baidu apollo
+  optional DetectionOutputSSDParameter detection_output_ssd_param = 4001;
+  optional BBoxRegParameter bbox_reg_param = 4018;
+  optional PSROIPoolingParameter psroi_pooling_param = 4019;
+  optional DFMBPSROIPoolingParameter dfmb_psroi_pooling_param = 4020;
+  optional RegParameter reg_param = 4023;
+  optional ProposalImgScaleToCamCoordsParameter proposal_img_scale_to_cam_coords_param = 4031;
+  optional DynamicShapelikeInputParameter dynamic_shapelike_input_param = 4034;
+  optional RoisAnchorFeatureParameter rois_anchor_feature_param = 4041;
 }
 
 // Message that stores parameters used to apply transformation
@@ -1446,4 +1458,207 @@ message PReLUParameter {
   optional FillerParameter filler = 1;
   // Whether or not slope parameters are shared across channels.
   optional bool channel_shared = 2 [default = false];
+}
+// SSD
+message PermuteParameter {
+  // The new orders of the axes of data. Notice it should be with
+  // in the same range as the input data, and it starts from 0.
+  // Do not provide repeated order.
+  repeated uint32 order = 1;
+}
+// add for baidu apollo
+message PSROIPoolingParameter {
+   required float heat_map_a = 1;
+   optional float heat_map_b = 2 [default = 0];
+   optional float pad_ratio = 3 [default = 0];
+   required int32 output_dim = 4; // output channel number
+   required int32 group_size = 5; // number of groups to encode position-sensitive score maps
+}
+message DFMBPSROIPoolingParameter {
+   required float heat_map_a = 1;
+   optional float heat_map_b = 2 [default = 0];
+   optional float pad_ratio = 3 [default = 0];
+   required uint32 output_dim = 4;
+   optional float trans_std = 5 [default = 0.1];
+   optional uint32 sample_per_part = 6 [default = 4];
+   optional uint32 group_height = 7 [default = 7]; 
+   optional uint32 group_width = 8 [default = 7]; 
+   optional uint32 pooled_height = 9 [default = 7]; 
+   optional uint32 pooled_width = 10 [default = 7]; 
+   optional uint32 part_height = 11 [default = 7]; 
+   optional uint32 part_width = 12 [default = 7]; 
+}
+message DetectionOutputSSDParameter{
+  enum MIN_SIZE_MODE {
+    HEIGHT_AND_WIDTH = 0;
+    HEIGHT_OR_WIDTH = 1;
+  }
+  optional NMSSSDParameter nms_param = 1;
+  repeated float        threshold = 2;
+  optional uint32       channel_per_scale = 3 [default = 5];
+  optional string       class_name_list = 4 ;
+  optional uint32       num_class = 5 [default = 1];
+  optional bool         refine_out_of_map_bbox = 6 [default = false];
+  repeated uint32       class_indexes = 7;
+  repeated float        heat_map_a = 8;
+  repeated float        heat_map_b = 13;
+  optional float        threshold_objectness = 9 [default = 0.0];
+  repeated float        proposal_min_sqrt_area = 10;
+  repeated float        proposal_max_sqrt_area = 11;
+  optional bool         bg_as_one_of_softmax = 12 [default = false];
+  optional bool use_target_type_rcnn = 14 [default = true];
+  optional float im_width = 15 [default = 0];
+  optional float im_height = 16 [default = 0];
+  optional bool rpn_proposal_output_score = 17 [default = false];
+  optional bool regress_agnostic = 18 [default = true];
+  optional GenerateAnchorParameter gen_anchor_param = 19;
+  optional float allow_border = 20 [default = -1.0];
+  optional float allow_border_ratio = 21 [default = -1.0];
+  optional bool bbox_size_add_one = 22 [default = true];
+  optional float read_width_scale = 29 [default = 1.0];
+  optional float read_height_scale = 30 [default = 1.0];
+  optional uint32 read_height_offset = 31 [default = 0];
+  optional float min_size_h = 32 [default = 2.0];
+  optional float min_size_w = 33 [default = 2.0];
+  optional MIN_SIZE_MODE min_size_mode = 34 [default = HEIGHT_AND_WIDTH];
+  optional KPTSParameter kpts_param = 35;
+  optional ATRSParameter atrs_param = 36;
+  optional FTRSParameter ftrs_param = 37;
+  optional SPMPParameter spmp_param = 38;
+  optional Cam3dParameter cam3d_param = 39;
+}
+message GenerateAnchorParameter{
+  optional float base_size = 1 [default = 16];
+  repeated float ratios = 2;
+  repeated float scales = 3;
+  repeated float anchor_width = 4;
+  repeated float anchor_height = 5;
+  repeated float anchor_x1 = 6;
+  repeated float anchor_y1 = 7;
+  repeated float anchor_x2 = 8;
+  repeated float anchor_y2 = 9;
+  optional bool zero_anchor_center = 10 [default = true];
+}
+message NMSSSDParameter{
+  optional bool     need_nms = 1 [default = true];
+  repeated float    overlap_ratio = 2 ;
+  repeated uint32   top_n = 3 ;
+  optional bool     add_score = 4 [default = false];
+  repeated int32    max_candidate_n = 5;
+  repeated bool     use_soft_nms = 6;
+  optional bool     nms_among_classes = 7 [default = false];
+  repeated bool     voting = 8;
+  repeated float    vote_iou = 9;
+  optional int32 nms_gpu_max_n_per_time = 12 [default = -1];
+}
+message KPTSParameter{
+  required uint32 kpts_exist_bottom_idx = 1;
+  required uint32 kpts_reg_bottom_idx = 2;
+  optional bool kpts_reg_as_classify = 3 [default = false];
+  optional uint32 kpts_classify_width = 4;
+  optional uint32 kpts_classify_height = 5;
+  optional int32 kpts_reg_norm_idx_st = 6;
+  repeated int32 kpts_st_for_each_class = 7;
+  repeated int32 kpts_ed_for_each_class = 8;
+  optional float kpts_classify_pad_ratio = 9 [default = 0.0];
+}
+message ATRSParameter{
+  enum NormType {
+    NONE = 0;
+    WIDTH = 1;
+    HEIGHT = 2;
+    WIDTH_LOG = 3;
+    HEIGHT_LOG = 4;
+  }
+  required uint32 atrs_reg_bottom_idx = 1;
+  optional int32 atrs_reg_norm_idx_st = 2;
+  repeated NormType atrs_norm_type = 3;
+}
+message FTRSParameter{
+  required uint32 ftrs_bottom_idx = 1;
+}
+message SPMPParameter{
+  required uint32 spmp_bottom_idx = 1;
+  repeated bool spmp_class_aware = 2;
+  repeated uint32 spmp_label_width = 3;
+  repeated uint32 spmp_label_height = 4;
+  repeated float spmp_pad_ratio = 5;
+}
+message Cam3dParameter{
+  required uint32 cam3d_bottom_idx = 1;
+}
+message BBoxRegParameter {
+  repeated float bbox_mean = 1;
+  repeated float bbox_std = 2;
+}
+message RegParameter {
+  repeated float mean = 1;
+  repeated float std = 2;
+}
+message ProposalImgScaleToCamCoordsParameter {
+  enum NormType {
+    HEIGHT = 0;
+    HEIGHT_LOG = 1;
+  }
+  enum OrienType {
+    PI = 0;
+    PI2 = 1;
+  }
+  required uint32 num_class = 1;
+  repeated uint32 sub_class_num_class = 2;
+  repeated int32 sub_class_bottom_idx = 3;
+  optional NormType prj_h_norm_type = 4 [default = HEIGHT_LOG];
+  optional bool has_size3d_and_orien3d = 5 [default = false];
+  optional OrienType orien_type = 6 [default = PI2];
+  repeated uint32 cls_ids_zero_size3d_w = 7;
+  repeated uint32 cls_ids_zero_size3d_l = 8;
+  repeated uint32 cls_ids_zero_orien3d = 9;
+  optional bool cmp_pts_corner_3d = 10 [default = false];
+  optional bool cmp_pts_corner_2d = 11 [default = false];
+  repeated float ctr_2d_means = 12; 
+  repeated float ctr_2d_stds = 13; 
+  repeated float prj_h_means = 14; 
+  repeated float prj_h_stds = 15; 
+  repeated float real_h_means = 16; 
+  repeated float real_h_stds = 17; 
+  repeated float real_w_means = 18; 
+  repeated float real_w_stds = 19; 
+  repeated float real_l_means = 20; 
+  repeated float real_l_stds = 21; 
+  repeated float sin_means = 22; 
+  repeated float sin_stds = 23; 
+  repeated float cos_means = 24; 
+  repeated float cos_stds = 25; 
+  optional uint32 cam_info_idx_st_in_im_info = 26 [default = 0]; 
+  optional float im_width_scale = 27 [default = 1.0];
+  optional float im_height_scale = 28 [default = 1.0];
+  optional float cords_offset_x = 29 [default = 0.0];
+  optional float cords_offset_y = 30 [default = 0.0];
+  optional bool bbox_size_add_one = 31 [default = true];
+  optional bool rotate_coords_by_pitch = 32 [default = false];
+  optional bool with_trunc_ratio = 37 [default = false];
+  optional bool regress_ph_rh_as_whole = 38 [default = false];
+  repeated float real_h_means_as_whole = 39;  
+  repeated float real_h_stds_as_whole = 40;  
+}
+message DynamicShapelikeInputParameter {
+  optional int32 force_n = 1 [default = -1];
+  optional int32 force_c = 2 [default = -1];
+  optional int32 force_h = 3 [default = -1];
+  optional int32 force_w = 4 [default = -1];
+  optional float value = 5 [default = 0.0];
+}
+message RoisAnchorFeatureParameter {
+  optional float min_anchor_size = 1 [default = 8];
+  optional uint32 num_anchor_scales = 2 [default = 15];
+  optional float anchor_scale_pow_base = 3 [default = 1.4142];
+  repeated float anchor_wph_ratios = 4;
+  optional uint32 num_top_iou_anchor = 5 [default = 10];
+  optional uint32 min_num_top_iou_anchor = 12 [default = 3];
+  optional float iou_thr = 6 [default = 0.5];
+  optional bool ft_ratio_h = 7 [default = false];
+  optional bool ft_ratio_w = 8 [default = false];
+  optional bool ft_log_ratio_h = 9 [default = false];
+  optional bool ft_log_ratio_w = 10 [default = false];
+  optional bool bbox_size_add_one = 11 [default = true];
 }
