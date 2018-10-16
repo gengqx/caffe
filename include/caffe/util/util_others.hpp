@@ -183,6 +183,6 @@ template <typename Dtype>
 void cord2dTo3d(Dtype k1, Dtype k2, Dtype u, 
     Dtype v, Dtype ph, Dtype rh,
     Dtype & x, Dtype & y, Dtype & z);
-}
+}  // namespace caffe
 
-#endif CAFFE_UTIL_UTIL_OTHERS_HPP_
+#endif  // CAFFE_UTIL_UTIL_OTHERS_HPP_
