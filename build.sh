@@ -5,6 +5,7 @@ cmake -DCUDA_ARCH_NAME=All -DBUILD_docs=OFF -DBUILD_python_layer=OFF -DUSE_OPENC
 make all
 make install
 
+cd ..
 mkdir caffe-output
 cp -r build/install/include caffe-output
 cp -r build/lib caffe-output
