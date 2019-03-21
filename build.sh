@@ -2,7 +2,7 @@
 mkdir build
 cd build 
 cmake -DCUDA_ARCH_NAME=All -DBUILD_docs=OFF -DBUILD_python_layer=OFF -DUSE_OPENCV=OFF -DUSE_LEVELDB=OFF -DUSE_LMDB=OFF ..
-make all
+make all -j 10
 make install
 
 cd ..
